@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AI-Based Daily Speaking Coach API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: sessions
+    description: Speaking session operations
+  - name: feedback
+    description: Feedback operations
+  - name: progress
+    description: User progress operations
 paths:
   /healthz:
     get:
@@ -24,6 +30,188 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /sessions/upload:
+    post:
+      operationId: uploadAudio
+      tags: [sessions]
+      summary: Upload audio file for a speaking session
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                userId:
+                  type: string
+              required:
+                - audio
+                - userId
+      responses:
+        "201":
+          description: Audio uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadAudioResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sessions/{sessionId}/analyze:
+    post:
+      operationId: analyzeSession
+      tags: [sessions]
+      summary: Analyze a speaking session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Analysis complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionAnalysis"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sessions:
+    get:
+      operationId: listSessions
+      tags: [sessions]
+      summary: List all sessions for a user
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListSessionsResponse"
+
+  /sessions/{sessionId}:
+    get:
+      operationId: getSession
+      tags: [sessions]
+      summary: Get a specific session with transcript, scores, and feedback
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionDetail"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /feedback/{sessionId}:
+    get:
+      operationId: getSessionFeedback
+      tags: [feedback]
+      summary: Get AI feedback for a specific session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session feedback
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackDetail"
+        "404":
+          description: Feedback not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /progress/{userId}:
+    get:
+      operationId: getUserProgress
+      tags: [progress]
+      summary: Get user progress and speaking improvement over time
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: User progress data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProgress"
+
+  /progress/{userId}/summary:
+    get:
+      operationId: getUserProgressSummary
+      tags: [progress]
+      summary: Get summarized stats and improvement highlights for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProgressSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +222,275 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    UploadAudioResponse:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+        userId:
+          type: string
+        audioPath:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - sessionId
+        - userId
+        - audioPath
+        - status
+        - createdAt
+
+    SpeechScores:
+      type: object
+      properties:
+        fluencyScore:
+          type: number
+          description: Words per minute score (0-100)
+        pauseScore:
+          type: number
+          description: Score based on pause frequency and duration (0-100)
+        vocabularyScore:
+          type: number
+          description: Unique words ratio score (0-100)
+        overallScore:
+          type: number
+          description: Overall speaking score (0-100)
+        wordsPerMinute:
+          type: number
+        uniqueWordRatio:
+          type: number
+        pauseCount:
+          type: integer
+        totalWords:
+          type: integer
+        durationSeconds:
+          type: number
+      required:
+        - fluencyScore
+        - pauseScore
+        - vocabularyScore
+        - overallScore
+        - wordsPerMinute
+        - uniqueWordRatio
+        - pauseCount
+        - totalWords
+        - durationSeconds
+
+    SessionAnalysis:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+        transcript:
+          type: string
+        scores:
+          $ref: "#/components/schemas/SpeechScores"
+        feedback:
+          type: string
+        status:
+          type: string
+        analyzedAt:
+          type: string
+          format: date-time
+      required:
+        - sessionId
+        - transcript
+        - scores
+        - feedback
+        - status
+        - analyzedAt
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        audioPath:
+          type: string
+        status:
+          type: string
+        transcript:
+          type: ["string", "null"]
+        fluencyScore:
+          type: ["number", "null"]
+        pauseScore:
+          type: ["number", "null"]
+        vocabularyScore:
+          type: ["number", "null"]
+        overallScore:
+          type: ["number", "null"]
+        wordsPerMinute:
+          type: ["number", "null"]
+        durationSeconds:
+          type: ["number", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        analyzedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - userId
+        - audioPath
+        - status
+        - createdAt
+
+    ListSessionsResponse:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Session"
+        total:
+          type: integer
+      required:
+        - sessions
+        - total
+
+    SessionDetail:
+      type: object
+      properties:
+        session:
+          $ref: "#/components/schemas/Session"
+        feedback:
+          type: ["string", "null"]
+        scores:
+          type: ["object", "null"]
+          properties:
+            fluencyScore:
+              type: ["number", "null"]
+            pauseScore:
+              type: ["number", "null"]
+            vocabularyScore:
+              type: ["number", "null"]
+            overallScore:
+              type: ["number", "null"]
+            wordsPerMinute:
+              type: ["number", "null"]
+            uniqueWordRatio:
+              type: ["number", "null"]
+            pauseCount:
+              type: ["integer", "null"]
+            totalWords:
+              type: ["integer", "null"]
+            durationSeconds:
+              type: ["number", "null"]
+      required:
+        - session
+
+    FeedbackDetail:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+        feedback:
+          type: string
+        strengths:
+          type: array
+          items:
+            type: string
+        improvements:
+          type: array
+          items:
+            type: string
+        scores:
+          $ref: "#/components/schemas/SpeechScores"
+        transcript:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - sessionId
+        - feedback
+        - strengths
+        - improvements
+        - scores
+        - transcript
+        - createdAt
+
+    ProgressDataPoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date-time
+        sessionId:
+          type: integer
+        fluencyScore:
+          type: ["number", "null"]
+        pauseScore:
+          type: ["number", "null"]
+        vocabularyScore:
+          type: ["number", "null"]
+        overallScore:
+          type: ["number", "null"]
+        wordsPerMinute:
+          type: ["number", "null"]
+      required:
+        - date
+        - sessionId
+
+    UserProgress:
+      type: object
+      properties:
+        userId:
+          type: string
+        dataPoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProgressDataPoint"
+        totalSessions:
+          type: integer
+        daysTracked:
+          type: integer
+      required:
+        - userId
+        - dataPoints
+        - totalSessions
+        - daysTracked
+
+    UserProgressSummary:
+      type: object
+      properties:
+        userId:
+          type: string
+        totalSessions:
+          type: integer
+        avgFluencyScore:
+          type: ["number", "null"]
+        avgPauseScore:
+          type: ["number", "null"]
+        avgVocabularyScore:
+          type: ["number", "null"]
+        avgOverallScore:
+          type: ["number", "null"]
+        bestSession:
+          type: ["integer", "null"]
+        latestSession:
+          type: ["integer", "null"]
+        streak:
+          type: integer
+          description: Number of consecutive days with a session
+        improvementPercent:
+          type: ["number", "null"]
+          description: Overall improvement percentage compared to first 3 sessions
+      required:
+        - userId
+        - totalSessions
+        - streak
