@@ -198,14 +198,6 @@ pnpm --filter frontend dev
 ---
 
 
-
-##  Contributing
-
-Contributions are welcome!
-Fork the repo and create a pull request.
-
----
-
 ##  License
 
 MIT License
